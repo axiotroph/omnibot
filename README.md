@@ -1,10 +1,10 @@
-#Omnibot
+# Omnibot
 
 The idea was to host a chat bot that allowed friends who like to code and
 friends who like to learn to code to run their code on our shared server. This
 bot is the realization of that idea. 
 
-##Before you begin
+## Before you begin
 
 In general, executing code that someone gave to your server over a public
 interface is a Very Bad Idea. The purpose of this bot is to do just that. I
@@ -27,7 +27,7 @@ troubles. Please don't take offense if this happens. I suggest making sure your
 code is at least syntactically correct before submitting it - such as in your
 browser's javascript console (ctrl+shift+k).
 
-##Module api
+## Module api
 
 User code is organized into *modules*, which are expected to correspond to
 minimal features. Modules are implemented as Objects with the keys and values
@@ -57,7 +57,7 @@ the following variables available:
 If you want to do something that this api makes difficult, get in touch and we
 can work on it.
 
-###Expectations for user code
+### Expectations for user code
 - do not pollute the global namespace without very good reason.
 - user code should be free of potential memory leaks
 - do not cause spam. In particular, if your module interacts with people who
@@ -76,7 +76,7 @@ can work on it.
   function - if such a function exists, the wrapper will call it when the
   module is stopping, just before removing the event listeners.
 
-##Built in commands
+## Built in commands
 
 I intend to implement as much as possible with userspace modules, so the
 builtin commands are only the minimum required to manage modules. All of these
