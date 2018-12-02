@@ -1,11 +1,12 @@
 const log = require('./log.js');
+const authTimeout = 48*60*60*1000; // two days
 
 module.exports = function(client, db){
   const command = function (trigger, body){
     client.on('message', msg => {
       let found = msg.content.match(trigger)
       if(!msg.author.bot && found){
-        body(found, msg).catch(err => msg.reply(err.stack));
+        body(found, msg).catch(err => msg.channel.send("unhandled error:" + "```"+err.stack+"```"));
       }
     });
   };
@@ -33,21 +34,39 @@ module.exports = function(client, db){
     if(search.length == 1){
       return search[0];
     }else if(search.length == 0){
-      console.dir(Object.keys(index));
-      console.dir(index);
       throw Error("no module by that name or id");
     }else{
       throw Error("the name '" + ident + "' is ambiguous - matches module ids " + search.toString());
     }
   }
 
-  const auth = function(indexEntry, sender){
-    if(indexEntry.owner != sender.id && !sender.permissions.has("ADMINISTRATOR")){
+  const memberIsAdmin = function(member){
+    return member.permissions.has("ADMINISTRATOR");
+  }
+
+  const userIsAdmin = function(user, guild){
+    return memberIsAdmin(guild.member(user));
+  }
+
+  const checkOwner = function(indexEntry, sender){
+    if(indexEntry.owner != sender.id && !memberIsAdmin(sender)){
       throw Error("you are not authorized to do that");
     }
   }
 
-  command(/\$create (\w+)/, async (match, msg) => {
+  const commonLookup = async function(match){
+    let index = await getIndex();
+    let name = match[1]
+    let id = lookup(index, name);
+    return {
+      'index': index, 
+      'name': name, 
+      'id': id,
+      'fullName': name + " (" + id + ")"
+    }
+  }
+
+  command(/^\$create (\w+)$/, async (match, msg) => {
     let name = match[1];
     let index = await getIndex();
     let id = assignID(index, msg.author);
@@ -62,18 +81,92 @@ module.exports = function(client, db){
 
     await db.put('index', index);
     await db.put(id, {});
-    await msg.reply("created module " + name + " (" + id + ")");
+    await msg.channel.send("created module " + name + " (" + id + ")");
   });
 
-  command(/\$delete (\w+)/, async (match, msg) => {
-    let index = await getIndex();
-    let name = match[1]
-    let id = lookup(index, name);
-    auth(index[id], msg.member);
+  const auth = async function(index, id, msg){
+    if(index[id].auth){
+      return Promise.resolve(true);
+    }
 
-    delete index[id];
-    await db.del(id);
-    await db.put('index', index);
-    await msg.reply("deleted module " + name + " (" + id + ")");
+    let authmsg = await msg.channel.send("requesting auth for module " + id);
+    await authmsg.react('✅');
+    await authmsg.react('❎');
+
+    let collector = authmsg.createReactionCollector(
+      (reaction, user) => !user.bot && userIsAdmin(user, msg.guild),
+      {time: authTimeout});
+
+    let onTimeout = err => {
+      msg.reply("auth request timed out for module " + id)
+        .then(Promise.resolve(false));
+    };
+
+    let onAnswer = answer => {
+      if(answer.emoji.name == '✅'){ 
+        getIndex()
+          .then(index => {index[id].auth = true; db.put('index', index)})
+          .then(() => msg.reply("auth confirmed for module " + id))
+          .then(Promise.resolve(true));
+      }else{
+        msg.reply("auth declined for module " + id)
+          .then(Promise.resolve(false));
+      }
+    };
+
+    return collector.next.then(onAnswer, onTimeout);
+  }
+
+  command(/^\$auth (\w+)$/, async (match, msg) => {
+    let data = await commonLookup(match);
+
+    return await auth(data.index, data.id, msg);
+  });
+
+  command(/^\$deauth (\w+)$/, async (match, msg) => {
+    let data = await commonLookup(match);
+    data.index[data.id].auth = false;
+    await db.put('index', data.index);
+    msg.channel.send("module " + data.fullName + " deauthed");
+  });
+
+  command(/^\$delete (\w+)$/, async (match, msg) => {
+    let data = await commonLookup(match);
+    checkOwner(index[data.id], msg.member);
+
+    delete index[data.id];
+    await db.del(data.id);
+    await db.put('index', data.index);
+    await msg.channel.send("deleted module " + data.fullName);
+  });
+
+  command(/^\$source (\w+)$/, async (match, msg) => {
+    let data = await commonLookup(match);
+    let source = await db.get(data.id);
+
+    await msg.channel.send(
+      "```" + JSON.stringify(data.index[data.id], null, 2) + "```" 
+      + "```" + JSON.stringify(source, null, 2) + "```"
+    );
+  });
+
+  command(/^\$let (\w+) (\w+) ```([\s\S]*)```$/, async (match, msg) => {
+    let data = await commonLookup(match);
+    checkOwner(data.index[data.id], msg.member);
+
+    if(data.index[data.id].auth){
+      data.index[data.id].auth = false;
+      await db.put('index', data.index);
+    }
+
+    let module = await db.get(data.id);
+    if(match[3] == "undefined" || match[3].match(/^\s*$/)){
+      delete module[match[2]];
+    }else{
+      module[match[2]] = match[3];
+    }
+    await db.put(data.id, module);
+
+    await msg.channel.send("assigned property " + match[2] + " on " + data.fullName);
   });
 }
