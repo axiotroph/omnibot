@@ -79,7 +79,7 @@ module.exports = function(client, db, stateDB){
     }
   }
 
-  command(/^\$create (\w+)$/, async (match, msg) => {
+  command(/^\%create (\w+)$/, async (match, msg) => {
     let name = match[1];
     let index = await getIndex();
     let id = assignID(index, msg.author);
@@ -117,26 +117,26 @@ module.exports = function(client, db, stateDB){
 
     let onAnswer = answer => {
       if(answer.emoji.name == '✅'){ 
-        getIndex()
+        return getIndex()
           .then(index => {index[id].auth = true; db.put('index', index)})
           .then(() => msg.reply("auth confirmed for module " + id))
-          .then(Promise.resolve(true));
+          .then(() => Promise.resolve(true));
       }else{
-        msg.reply("auth declined for module " + id)
-          .then(Promise.resolve(false));
+        return msg.reply("auth declined for module " + id)
+          .then(() => Promise.resolve(false));
       }
     };
 
     return collector.next.then(onAnswer, onTimeout);
   }
 
-  command(/^\$auth (\w+)$/, async (match, msg) => {
+  command(/^\%auth (\w+)$/, async (match, msg) => {
     let data = await commonLookup(match);
 
     return await auth(data.index, data.id, msg);
   });
 
-  command(/^\$deauth (\w+)$/, async (match, msg) => {
+  command(/^\%deauth (\w+)$/, async (match, msg) => {
     let data = await commonLookup(match);
     checkOwner(data.index[data.id], msg.member);
 
@@ -145,7 +145,7 @@ module.exports = function(client, db, stateDB){
     msg.channel.send("module " + data.fullName + " deauthed");
   });
 
-  command(/^\$up (\w+)$/, async (match, msg) => {
+  command(/^\%up (\w+)$/, async (match, msg) => {
     let data = await commonLookup(match);
     checkOwner(data.index[data.id], msg.member);
     let allowed = await auth(data.index, data.id, msg);
@@ -154,7 +154,7 @@ module.exports = function(client, db, stateDB){
     }
   });
 
-  command(/^\$down (\w+)$/, async (match, msg) => {
+  command(/^\%down (\w+)$/, async (match, msg) => {
     let data = await commonLookup(match);
     checkOwner(data.index[data.id], msg.member);
     await down(data.index, data.id, msg);
@@ -191,7 +191,7 @@ module.exports = function(client, db, stateDB){
     }
   }
 
-  command(/^\$delete (\w+)$/, async (match, msg) => {
+  command(/^\%delete (\w+)$/, async (match, msg) => {
     let data = await commonLookup(match);
     checkOwner(data.index[data.id], msg.member);
 
@@ -201,17 +201,20 @@ module.exports = function(client, db, stateDB){
     await msg.channel.send("deleted module " + data.fullName);
   });
 
-  command(/^\$source (\w+)$/, async (match, msg) => {
+  command(/^\%source (\w+)$/, async (match, msg) => {
     let data = await commonLookup(match);
     let source = await db.get(data.id);
 
-    await msg.channel.send(
-      "```" + JSON.stringify(data.index[data.id], null, 2) + "```" 
-      + "```" + JSON.stringify(source, null, 2) + "```"
-    );
+    let result = "";
+    result += "```metadata: " + JSON.stringify(data.index[data.id], null, 2) + "```";
+    for(let k in source){
+      result += "```" + k + ": " + source[k] + "```";
+    }
+
+    await msg.channel.send(result);
   });
 
-  command(/^\$let (\w+) (\w+) (`{3}|`)([\s\S]*)(\3)$/, async (match, msg) => {
+  command(/^\%let (\w+) (\w+) (`{3}|`)([\s\S]*)(\3)$/, async (match, msg) => {
     let data = await commonLookup(match);
     checkOwner(data.index[data.id], msg.member);
 
