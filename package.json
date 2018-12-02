@@ -1,0 +1,28 @@
+{
+  "name": "omnibot",
+  "version": "1.0.0",
+  "description": "Let-people-write-the-bot discord bot",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/axiotroph/omnibot.git"
+  },
+  "author": "izabyl",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/axiotroph/omnibot/issues"
+  },
+  "homepage": "https://github.com/axiotroph/omnibot#readme",
+  "dependencies": {
+    "@discordjs/uws": "^11.149.1",
+    "bufferutil": "^4.0.0",
+    "discord.js": "^11.4.2",
+    "erlpack": "github:discordapp/erlpack",
+    "level": "^4.0.0",
+    "sodium": "^3.0.2",
+    "zlib-sync": "^0.1.4"
+  }
+}
