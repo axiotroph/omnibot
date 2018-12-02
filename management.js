@@ -140,17 +140,17 @@ module.exports = function(client, db, stateDB){
     checkOwner(data.index[data.id], msg.member);
     let allowed = await auth(data.index, data.id, msg);
     if(allowed){
-      await up(data.index, data.id);
+      await up(data.index, data.id, msg);
     }
   });
 
   command(/^\$down (\w+)$/, async (match, msg) => {
     let data = await commonLookup(match);
     checkOwner(data.index[data.id], msg.member);
-    await down(data.index, data.id);
+    await down(data.index, data.id, msg);
   });
 
-  const up = async function(index, id){
+  const up = async function(index, id, msg){
     if(!index[id].up){
       await getIndex().then(index => {index[id].up = true; db.put('index', index)});
     }
@@ -160,11 +160,12 @@ module.exports = function(client, db, stateDB){
     }
 
     let template = await db.get(id);
-    running[id] = buildModule(template);
-    running[id].start(db, stateDB, client, index[id]);
+    running[id] = buildModule(template, client);
+    running[id].start(db, stateDB, index[id]);
+    await msg.channel.send("started module " + id);
   }
 
-  const down = async function(index, id){
+  const down = async function(index, id, msg){
     if(index[id].up){
       await getIndex().then(index => {index[id].up = false; db.put('index', index)});
     }
@@ -172,6 +173,7 @@ module.exports = function(client, db, stateDB){
     if(running[id]){
       running[id].stop();
       delete running[id];
+      await msg.channel.send("stopped module " + id);
     }
   }
 
