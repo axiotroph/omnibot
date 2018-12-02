@@ -94,5 +94,6 @@ by id (ids are always unique).
   isn't yet authorized.
 - `%down [module]`: stop the module, if it's currently running, and don't
   automatically restart it.
-- `%source [module]`: show the source code and metadata of a module.
+- `%source [module]`: show the source code and metadata of a module. For any
+  command that isn't one of these, you can use %source to see how it works.
 
