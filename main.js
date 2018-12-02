@@ -17,11 +17,12 @@ function connect(){
     .then(() => client)
 };
 
-const ldb = level('./state')
-const db = {
-  'get': key => {return ldb.get(key).then(JSON.parse)},
-  'put': (key, value) => ldb.put(key, JSON.stringify(value)),
-  'del': key => ldb.del(key)
-};
+const wrapDB = function(ldb){
+  return {
+    'get': key => {return ldb.get(key).then(JSON.parse)},
+    'put': (key, value) => ldb.put(key, JSON.stringify(value)),
+    'del': key => ldb.del(key)
+  }
+}
 
-connect().then(client => setup(client, db));
+connect().then(client => setup(client, wrapDB(level('./modules')), wrapDB(level('./state'))));

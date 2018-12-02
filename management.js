@@ -1,7 +1,10 @@
 const log = require('./log.js');
+const buildModule = require ('./module.js');
 const authTimeout = 48*60*60*1000; // two days
 
-module.exports = function(client, db){
+module.exports = function(client, db, stateDB){
+  let running = {};
+
   const command = function (trigger, body){
     client.on('message', msg => {
       let found = msg.content.match(trigger)
@@ -125,10 +128,52 @@ module.exports = function(client, db){
 
   command(/^\$deauth (\w+)$/, async (match, msg) => {
     let data = await commonLookup(match);
+    checkOwner(data.index[data.id], msg.member);
+
     data.index[data.id].auth = false;
     await db.put('index', data.index);
     msg.channel.send("module " + data.fullName + " deauthed");
   });
+
+  command(/^\$up (\w+)$/, async (match, msg) => {
+    let data = await commonLookup(match);
+    checkOwner(data.index[data.id], msg.member);
+    let allowed = await auth(data.index, data.id, msg);
+    if(allowed){
+      await up(data.index, data.id);
+    }
+  });
+
+  command(/^\$down (\w+)$/, async (match, msg) => {
+    let data = await commonLookup(match);
+    checkOwner(data.index[data.id], msg.member);
+    await down(data.index, data.id);
+  });
+
+  const up = async function(index, id){
+    if(!index[id].up){
+      await getIndex().then(index => {index[id].up = true; db.put('index', index)});
+    }
+
+    if(running[id]){
+      return;
+    }
+
+    let template = await db.get(id);
+    running[id] = buildModule(template);
+    running[id].start(db, stateDB, client, index[id]);
+  }
+
+  const down = async function(index, id){
+    if(index[id].up){
+      await getIndex().then(index => {index[id].up = false; db.put('index', index)});
+    }
+
+    if(running[id]){
+      running[id].stop();
+      delete running[id];
+    }
+  }
 
   command(/^\$delete (\w+)$/, async (match, msg) => {
     let data = await commonLookup(match);
