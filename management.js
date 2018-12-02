@@ -14,6 +14,16 @@ module.exports = function(client, db, stateDB){
     });
   };
 
+  const onStart = async function(){
+    let index = await getIndex();
+    for(let k in index){
+      let v = index[k];
+      if(v.up){
+        up(index, k);
+      }
+    }
+  }
+
   const getIndex = function(){
     return db.get('index').catch(err => err.notFound ? Promise.resolve({}) : Promise.reject(err));
   }
@@ -162,7 +172,9 @@ module.exports = function(client, db, stateDB){
     let template = await db.get(id);
     running[id] = buildModule(template, client);
     running[id].start(db, stateDB, index[id]);
-    await msg.channel.send("started module " + id);
+    if(msg){
+      await msg.channel.send("started module " + id);
+    }
   }
 
   const down = async function(index, id, msg){
@@ -173,15 +185,17 @@ module.exports = function(client, db, stateDB){
     if(running[id]){
       running[id].stop();
       delete running[id];
-      await msg.channel.send("stopped module " + id);
+      if(msg){
+        await msg.channel.send("stopped module " + id);
+      }
     }
   }
 
   command(/^\$delete (\w+)$/, async (match, msg) => {
     let data = await commonLookup(match);
-    checkOwner(index[data.id], msg.member);
+    checkOwner(data.index[data.id], msg.member);
 
-    delete index[data.id];
+    delete data.index[data.id];
     await db.del(data.id);
     await db.put('index', data.index);
     await msg.channel.send("deleted module " + data.fullName);
@@ -197,7 +211,7 @@ module.exports = function(client, db, stateDB){
     );
   });
 
-  command(/^\$let (\w+) (\w+) ```([\s\S]*)```$/, async (match, msg) => {
+  command(/^\$let (\w+) (\w+) (`{3}|`)([\s\S]*)(\3)$/, async (match, msg) => {
     let data = await commonLookup(match);
     checkOwner(data.index[data.id], msg.member);
 
@@ -207,13 +221,15 @@ module.exports = function(client, db, stateDB){
     }
 
     let module = await db.get(data.id);
-    if(match[3] == "undefined" || match[3].match(/^\s*$/)){
+    if(match[3] == "undefined" || match[4].match(/^\s*$/)){
       delete module[match[2]];
     }else{
-      module[match[2]] = match[3];
+      module[match[2]] = match[4];
     }
     await db.put(data.id, module);
 
     await msg.channel.send("assigned property " + match[2] + " on " + data.fullName);
   });
+
+  onStart();
 }
