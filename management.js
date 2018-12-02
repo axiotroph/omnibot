@@ -195,6 +195,7 @@ module.exports = function(client, db, stateDB){
     let data = await commonLookup(match);
     checkOwner(data.index[data.id], msg.member);
 
+    down(data.index, data.id, msg);
     delete data.index[data.id];
     await db.del(data.id);
     await db.put('index', data.index);
