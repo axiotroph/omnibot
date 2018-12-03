@@ -1,3 +1,5 @@
+const log = require('./log.js');
+
 module.exports = function(template, client){
   let listeners = [];
 
@@ -6,8 +8,15 @@ module.exports = function(template, client){
   let start = function(moduleDB, localDB, metadata){
     let specialClient = Object.create(client);
     specialClient.on = function(target, handler){
-      listeners.push([target, handler]);
-      client.on(target, handler);
+      let innerHandler = function(e){
+        try{
+          handler(e);
+        }catch(err){
+          log("uncaught error: " + err.stack);
+        };
+      }
+      listeners.push([target, innerHandler]);
+      client.on(target, innerHandler);
     }
 
     template.start(template, moduleDB, localDB, specialClient, metadata);

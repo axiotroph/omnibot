@@ -172,6 +172,7 @@ module.exports = function(client, db, stateDB){
     let template = await db.get(id);
     running[id] = buildModule(template, client);
     running[id].start(db, stateDB, index[id]);
+
     if(msg){
       await msg.channel.send("started module " + id);
     }
