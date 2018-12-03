@@ -224,6 +224,8 @@ module.exports = function(client, db, stateDB){
       await db.put('index', data.index);
     }
 
+    await down(data.index, data.id, msg);
+
     let module = await db.get(data.id);
     if(match[3] == "undefined" || match[4].match(/^\s*$/)){
       delete module[match[2]];
